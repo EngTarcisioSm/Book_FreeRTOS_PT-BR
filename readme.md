@@ -21,9 +21,9 @@ ___
 ___
 
 ## Multitarefa em pequenos sistemas embarcados
-[up](#Sumário) 
+[↑](#Sumário) 
 ### Sobre o FreeRTOS
-[up](#Sumário) 
+[↑](#Sumário) 
 
 - O FreeRTOS é de propriedade, desenvolvido e mantido exclusivamente pela Real Time Engineers Ltd;
 - O FreeRTOS é uma aplicação em tempo real ideal para microcontroladores ou pequenos microprocessadores;
@@ -33,15 +33,15 @@ ___
 - O FreeRTOS é um kernel em tempo real sobre o qual aplicativos embarcados podem ser desenvolvidos para atender a requisitos rígidos de tempo real. Torna possivel que aplicativos sejam organizados como uma coleção de threads de execuções independentes, mesmo que o sistema ao qual esteja sendo executado possua apenas um núcleo. O kernel decide qual thread deve ser executado examinando a prioridade que foi atribuida a cada thread peo desenvolvedor do aplicativo. Pode-se aplicar prioridades mais altas a threads que necessitam atender a rigidos requisitos de tempo e prioridades mais baixas para threads mais flexiveis no que tange seu tempo de execução;
 
 ### Proposta de valor
-[up](#Sumário) 
+[↑](#Sumário) 
 - O FreeRTOS é gratuito para uso em aplicativos comerciais sem qualquer requisito de expor seu código-fonte proprietário;
 
 ### Terminologia 
-[up](#Sumário) 
+[↑](#Sumário) 
 - No FreeRTOS, cada thread é chamada de tarefa;
 
 ### Por que usar um kernel em tempo real?
-[up](#Sumário) 
+[↑](#Sumário) 
 - Recomenda-se o uso de kernel em tempo real quando a aplicação possui algum nivel de complexidade, nestes casos seu uso torna-se benéfico;
 - A priorização de tarefas pode ajudar a garantir que um aplicativa cumpra seus prazos de processamento. Além deste benefício é possivel citar outros:
     - **Abstração de informação de tempo:** O Kernel gerencia o tempo e fornece uma API relacionada ao tempo, permite a simplificação da estrutura de código do aplicativo, tornando inclusive o tamanho do código menor;
@@ -53,7 +53,7 @@ ___
     - **Gerenciamento de Energia:** Permite que o processador passe mais tempo em modo de baixo consumo de energia (sistemas low energy)
 
 ### Recursos do FreeRTOS
-[up](#Sumário) 
+[↑](#Sumário) 
 - O FreeRTOS possui os seguintes recursos:
     - Operação preemptiva ou cooperativa
     - Níveis de prioridade de tarefa flexiveis 
@@ -64,23 +64,23 @@ ___
     - Mutex
     - Mutex recursiva
     - Temporizadores de software
-    - Event Groups
+    - Event Gro↑s
     - Verificação de recursos utilizados
     - Dados estatisticos de tarefas em execução
-    - Licenciamento comercial opcional e suporte 
+    - Licenciamento comercial opcional e s↑orte 
 
 ### Licenciamento do FreRTOS
-[up](#Sumário) 
+[↑](#Sumário) 
 - Usuários do FreeRTOS mantêm a propriedade de sua propriedade intelectual;
 
 
 ## Introdução
-[up](#Sumário) 
+[↑](#Sumário) 
 - O FreeRTOS é distribuido como um único arquivo zip que contém todas os ports oficiais do FreeRTOS e um grande número de exemplo pré- configurados
 
 ### Entendendo a distribuição FreeRTOS
-[up](#Sumário) 
+[↑](#Sumário) 
 
 #### Definição Port FreeRTOS
-[up](#Sumário) 
+[↑](#Sumário) 
 - O FreeRTOS pode ser compilado por aproximadamente 20 compiladores diferens e pode ser executado em mais de 30 arquiteturas de processadores diferentes. 
