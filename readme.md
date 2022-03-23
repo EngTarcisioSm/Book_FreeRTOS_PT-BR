@@ -6,16 +6,16 @@
 - Material abaixo de livre reprodução desde que mantido o nome do autor.
 ___
 ## Sumário
-- [Multitarefa em pequenos sistemas embarcados](#Multitarefa_em_pequenos_sistemas_embarcados) 
-    - [Sobre o FreeRTOS](#Sobre_o_FreeRTOS)
-    - [Proposta de valor](#Proposta_de_valor)
+- [Multitarefa em pequenos sistemas embarcados](#Multitarefa-em-pequenos-sistemas-embarcados) 
+    - [Sobre o FreeRTOS](#Sobre-o-FreeRTOS)
+    - [Proposta de valor](#Proposta-de-valor)
     - [Terminologia](#Terminologia)
-    - [Por que usar um kernel em tempo real?](#Por_que_usar_um_kernel_em_tempo_real?)
-    - [Recursos do FreeRTOS](#Recursos_do_FreeRTOS)
-    - [Licenciamento do FreRTOS](#Licenciamento_do_FreRTOS)
+    - [Por que usar um kernel em tempo real?](#Por-que-usar-um-kernel-em-tempo-real?)
+    - [Recursos do FreeRTOS](#Recursos-do-FreeRTOS)
+    - [Licenciamento do FreRTOS](#Licenciamento-do-FreRTOS)
 - [Introdução](#Introdução)
-    - [Entendendo a distribuição FreeRTOS](#Entendendo_a_distribuição_FreeRTOS)
-        - [Definição: Port FreeRTOS](#Definição:_Port_FreeRTOS)
+    - [Entendendo a distribuição FreeRTOS](#Entendendo-a-distribuição-FreeRTOS)
+        - [Definição: Port FreeRTOS](#Definição:-Port-FreeRTOS)
 
 
 ___
