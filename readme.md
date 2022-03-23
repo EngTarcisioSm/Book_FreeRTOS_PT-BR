@@ -15,7 +15,7 @@ ___
     - [Licenciamento do FreRTOS](#Licenciamento-do-FreRTOS)
 - [Introdução](#Introdução)
     - [Entendendo a distribuição FreeRTOS](#Entendendo-a-distribuição-FreeRTOS)
-        - [Definição: Port FreeRTOS](#Definição:-Port-FreeRTOS)
+        - [Definição Port FreeRTOS](#Definição-Port-FreeRTOS)
 
 
 ___
@@ -72,5 +72,5 @@ ___
 
 ### Entendendo a distribuição FreeRTOS
 
-#### Definição: Port FreeRTOS
+#### Definição Port FreeRTOS
 - O FreeRTOS pode ser compilado por aproximadamente 20 compiladores diferens e pode ser executado em mais de 30 arquiteturas de processadores diferentes. 
