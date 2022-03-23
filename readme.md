@@ -1,8 +1,9 @@
-# Dominando o kernel em tempo real do FreeRTOS Um guia prático do tutorial (Resumo Eng. Tarcísio Souza de Melo)
+# Dominando o kernel em tempo real do FreeRTOS Um guia prático do tutorial (Resumo)
 # Ver. 0.0.1
 
 ## Observação 
 - Material baseado em "Mastering_the_FreeRTOS_Real_Time_Kernel-A_Hands-On_Tutorial_Guide" do autor Richard Barry (2016);
+- Autor do Resumo: Eng. Tarcísio Souza de Melo
 - Material abaixo de livre reprodução desde que mantido o nome do autor do texto base e do resumo.
 ___
 ## Sumário
