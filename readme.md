@@ -17,6 +17,11 @@ ___
 - [Introdução](#Introdução)
     - [Entendendo a distribuição FreeRTOS](#Entendendo-a-distribuição-FreeRTOS)
         - [Definição Port FreeRTOS](#Definição-Port-FreeRTOS)
+        - [Construção FreeRTOS](#Construção-FreeRTOS)
+        - [FreeRTOSConfig.h](#FreeRTOSConfig.h)
+        - [A distribuição oficial do FreeRTOS](#-A-distribuição-oficial-do-FreeRTOS)
+        - [Arquivos de origem do FreeRTOS especificos para port](#Arquivos-de-origem-do-FreeRTOS-especificos-para-port)
+        - [Inclusão de Paths](#Inclusão-de-Paths)
 
 
 ___
@@ -85,3 +90,40 @@ ___
 #### Definição Port FreeRTOS
 [↑](#Sumário) 
 - O FreeRTOS pode ser compilado por aproximadamente 20 compiladores diferens e pode ser executado em mais de 30 arquiteturas de processadores diferentes. 
+
+#### Construção FreeRTOS
+[↑](#Sumário) 
+- O FreeRTOS pode ser pensado como uma biblioteca que fornece recursos multitarefas;
+- O FreeRTOS é fornecido como um conjunto de arquivos ".c". Alguns destes arquivos são comuns a todos os ports enquanto outro são específicos a determinados ports.
+- Cada port possui incluso um arquivo de demonstração, incluido seus arquivos de cabeçalho;
+
+#### FreeRTOSConfig.h
+[↑](#Sumário) 
+- O FreeRTOS é configurado por um arquivo de cabeçalho chamado "FreeRTOSConfig.h";
+    - Como ele contém definições específicas do aplicativo, deve estar localizado em um diretório que faça parte do aplicativo, não em um diretório que contenha o código fonte do FreeRTOS.
+
+#### A distribuição oficial do FreeRTOS
+[↑](#Sumário) 
+- Apesar de um grande numero de arquivos, apenas um número muito pequeno de arquivos é necessário em qualquer aplicação
+
+#### Arquivos de origem do FreeRTOS comuns a todos os ports
+[↑](#Sumário) 
+- O código-fonte principal do FreeRTOS esta contido em apenas dois arquivos C, sendo eles comuns a todos os ports do freeRTOS, são eles os arquivos "task.c" e "list.c" localizado em FreeRTOS/Source. Outros arquivos estão presentes neste diretório:
+    - **queue.c**: serviçps de fila e semáforos (muito utilizado);
+    - **timers.c**: funcionalidade de timer de software, necessita de ser incluso na compilação caso sejam necessários na aplicação desenvolvida
+    - **event_groups.c**: fornece funcionalidade de grupo de eventos; 
+
+#### Arquivos de origem do FreeRTOS especificos para port
+[↑](#Sumário) 
+- Arquivos específicos de um port do FreeRTOS estão contidos no diretório FreeRTOS/Source/portable;
+- O FreeRTOS também considera a alocação de memória heap como parte da camada portátil;
+- O FreeRTOS fornece cinco exemplos de esquemas de alocação de heap. Os cinco esquemas são denominados de heap_1 a heap_5 implementados em heap_1.c a heap_5.c todos com extensão ".c"
+    - Estes arquivos estão alocados em FreeRTOS/Source/portable/MemMang
+    - A alocação dinâmica de memória obriga que um desses cinco arquivos de origem no projeto
+
+#### Inclusão de Paths
+[↑](#Sumário) 
+- O FreeRTOS requer 3 diretório incluidos no path do compilador:
+    - 
+    - 
+    - 
