@@ -27,8 +27,14 @@ ___
     - [Criando um projeto FreeRTOS](#Criando-um-projeto-FreeRTOS)
     - [Tipos de dados e Estilo de Codificação](#Tipos-de-dados-e-Estilo-de-Codificação)
         - [Tipos de dados](#Tipos-de-dados)
+        - [Nomes de Variáveis](#Nomes-de-Variáveis)
+        - [Nomes de Funções](#Nomes-de-Funções)
+        - [Nomes de Macros](#Nomes-de-Macros)
+- [Gerenciamento de Memória Heap](#Gerenciamento-de-Memória-Heap)
+    - [Alocação dinâmica de memória e sua relevância para o FreeRTOS](#Alocação-dinâmica-de-memória-e-sua-relevância-para-o-FreeRTOS)
+    - [Opções para alocação de memória dinâmica](#Opções-para-alocação-de-memória-dinâmica)
 
-___
+
 
 ## Multitarefa em pequenos sistemas embarcados 
 [↑](#Sumário) 
@@ -199,9 +205,65 @@ int main(void){
 
 | Macro ou Typedef usado | Tipo Real |
 |:---|:---|
-|TickType_t| O FreeRTOS configura uma interrupção periódica chamada interrupção de tique. <br>O numero de Interrupções de tick que ocorrem desde de que o aplicativo FreeRTOS foi iniciado é chamado de contagem de Ticks. Acontagem de ticks é usada como medida de tempo.<br> TickType_t é o tipo de dados usado para manter o valor da contagem de ticks e para especificar os tempos.<br>|
+|TickType_t| O FreeRTOS configura uma interrupção periódica chamada interrupção de tique. <br>O numero de Interrupções de tick que ocorrem desde de que o aplicativo FreeRTOS foi iniciado é chamado de contagem de Ticks. Acontagem de ticks é usada como medida de tempo.<br> TickType_t é o tipo de dados usado para manter o valor da contagem de ticks e para especificar os tempos.<br> O tamanho da variavel TickType_t depende da  constante "configUSE_16_BIT_TICKS", dentro do arquivo FreeRTOSConfig.h, para valor 1, a variavel será de 16bits, para o valor 0, será definido como 32bits.<br> Recomenda-se o uso de 0 para processadores de 32bits e o valor 1 para processadores de 16 e 8 bits.|
+|BaseType_t|É sempre definido com base no tipo de dado mais eficiente da arquitetura.<br> Para microcontroladores de 32bits o tipo é 32bits, para microcontroladores de 16bits a variavel é de 16bits e com arquiteturas de 8bits o tipo será de 8bits.<br> BaseType_t geralmente é usado para tipos de retorno que podem receber um intervalo muito limitado de valores e para booleanos do tipo pdTRUE e pdFALSE.|  
+<br>[↑](#Sumário) 
 
+#### Nomes de Variáveis 
+- As variáveis são prefixadas com seu tipo 
+    - 'c' para char
+    - 's' para int16_t
+    - 'l' para int32_t
+    - 'x' para BaseType_t e quais quer outros tipos não padrão (struct, identificadores, filas e etc...)
+- Caso uma varável não tiver sinal, ela também será prefixadas com 'u'
+- Caso uma variavel seja um ponteiro, ela será prefixada por 'p'
+<br>[↑](#Sumário) 
 
+#### Nomes de Funções
+- As funções são prefixadas com base em seu tipo de retorno e com o arquivo em que são definidas 
+- O nome é definidido da seguinte forma 
+    - [tipo][arquivo_de_origem][nome]()
+- Exemplo
+    - vTaskPrioritySet()
+        - retorno vazio
+        - construida dentro do arquivo task.c
+<br>[↑](#Sumário) 
 
+#### Nomes de Macros
+- A maioria das mnacros são escritas em maiúsculo e prefixadas com letra minuscula com o nome do arquivo de origem da macro
+- Exemplo:
+    - taskENTER_CRITICAL()
+        - macro localizada dentro do arquivo task.c
+- Excessão aos nomes dos semaforos, onde grande parte são desenvolvido por macros, entretanto sua nomenclatura é definida como a de funções 
+- Valores de algumas macros comuns
 
-PAREI PAGINA  7/20 DA PARTE 3
+|Macro|Valor|
+|:---:|:---:|
+|pdTRUE|1|
+|pdFALSE|0|
+|pdPASS|1|
+|pdFAIL|0|
+<br>[↑](#Sumário) 
+
+## Gerenciamento de Memória Heap
+- A partir do FreeRTOS V9.0.0, os aplicativos FreeRTOS podem ser totalmente alocados estaticamente removendo a necessidade de incluir um gerenciador de memória heap, ou dinamicamente em tempo de execução
+
+### Alocação dinâmica de memória e sua relevância para o FreeRTOS
+- O Kernel possui objetos como tarefas, filas, semáforos e grupos de eventos;
+- Os objetos do Kernel não são alocados em tempo de compilação, mas alocados dinamicamente em tempo de execução;
+- Os objetos podem ser alocados sempre que necessário e excluidos, liberando espaço ocupado;
+- A alocação dinamica de memória é um conceito de programação C, e não um conceito específico do FreeRTOS ou multitarefas. 
+- As ferramentas de alocação dinamica de compiladores nem sempre são as mais ideais para sistemas de tempo real;
+- O C fornece as funções malloc() e free() respectivamente para a alocação e desalocação de memoria, entretanto elas acabam não sendo as melhores opções por alguns motivos 
+    - Falta de espaço em sistemas embarcados para sua implementação 
+    - Raramente são thread-safe
+    - Não são deterministicas, tendo seu tempo de execução sofrendo uma variação muito grande 
+    - Pode gerar erros de depuração dificil 
+
+### Opções para alocação de memória dinâmica
+- O FreeRTOS agora trata a alocação de memória como parte da camada portátil. Diferentes sistemas embarcados tem diferentes requisitos de alocação dinamica de memoria e temporização, devido a isso a alocação no FreeRTOS ficar em uma camada portátil
+- Quando o FreeRTOS requer RAM, em vez de chamar malloc(), ele chama pvPortMalloc();
+- QUando a RAM necessita de ser liberada, em vez de chamar free(), o kernel chama vPortFree();
+- pvPortMalloc() e pvPortFree() são funções publicas, portanto também podem ser chamadas a partir do código do aplicativo 
+- O FreeRTOS vem com cinco exemplos de implementações de pvPortMalloc() e pvPortFree(), sendo definidos nos arquivos de origem heap_1.c, heap_2.c, heap_3.c, heap_4.c e heap_5.c localizados no diretório FreeRTOS/Source/portable/MemMang
+
