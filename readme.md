@@ -33,9 +33,21 @@ ___
 - [Gerenciamento de Memória Heap](#Gerenciamento-de-Memória-Heap)
     - [Alocação dinâmica de memória e sua relevância para o FreeRTOS](#Alocação-dinâmica-de-memória-e-sua-relevância-para-o-FreeRTOS)
     - [Opções para alocação de memória dinâmica](#Opções-para-alocação-de-memória-dinâmica)
-
-
-
+    - [Exemplo de Esquemas de Alocação de Memória](#Exemplo-de-Esquemas-de-Alocação-de-Memória)
+        - [HEAP 1](#HEAP-1)
+        - [HEAP 2](#HEAP-2)
+        - [HEAP 3](#HEAP-3)
+        - [HEAP 4](#HEAP-4)
+        - [HEAP 5](#HEAP-5)
+    - [Funções utilitárias relacionadas a Heap](#Funções-utilitárias-relacionadas-a-Heap)
+        - [Função de API xPortGetFreeHeapSize()](#Função-de-API-xPortGetFreeHeapSize())
+        - [Função de API xPortGetMinimumEverFreeHeapSize()](#Função-de-API-xPortGetMinimumEverFreeHeapSize())
+- [Gerenciamento de tarefas](#Gerenciamento-de-tarefas)
+    - [Funções da Tarefa](#Funções-da-Tarefa)
+    - [Estados de Tarefas de Nível Superior](#Estados-de-Tarefas-de-Nível-Superior)
+    - [Função da API xTaskCreate()](#Função-da-API-xTaskCreate())
+    - [Criando Tarefas](#Criando-Tarefas) 
+___
 ## Multitarefa em pequenos sistemas embarcados 
 [↑](#Sumário) 
 ### Sobre o FreeRTOS
@@ -247,6 +259,7 @@ int main(void){
 
 ## Gerenciamento de Memória Heap
 - A partir do FreeRTOS V9.0.0, os aplicativos FreeRTOS podem ser totalmente alocados estaticamente removendo a necessidade de incluir um gerenciador de memória heap, ou dinamicamente em tempo de execução
+<br>[↑](#Sumário) 
 
 ### Alocação dinâmica de memória e sua relevância para o FreeRTOS
 - O Kernel possui objetos como tarefas, filas, semáforos e grupos de eventos;
@@ -259,6 +272,7 @@ int main(void){
     - Raramente são thread-safe
     - Não são deterministicas, tendo seu tempo de execução sofrendo uma variação muito grande 
     - Pode gerar erros de depuração dificil 
+<br>[↑](#Sumário) 
 
 ### Opções para alocação de memória dinâmica
 - O FreeRTOS agora trata a alocação de memória como parte da camada portátil. Diferentes sistemas embarcados tem diferentes requisitos de alocação dinamica de memoria e temporização, devido a isso a alocação no FreeRTOS ficar em uma camada portátil
@@ -266,4 +280,135 @@ int main(void){
 - QUando a RAM necessita de ser liberada, em vez de chamar free(), o kernel chama vPortFree();
 - pvPortMalloc() e pvPortFree() são funções publicas, portanto também podem ser chamadas a partir do código do aplicativo 
 - O FreeRTOS vem com cinco exemplos de implementações de pvPortMalloc() e pvPortFree(), sendo definidos nos arquivos de origem heap_1.c, heap_2.c, heap_3.c, heap_4.c e heap_5.c localizados no diretório FreeRTOS/Source/portable/MemMang
+<br>[↑](#Sumário) 
 
+### Exemplo de Esquemas de Alocação de Memória
+
+#### HEAP 1 
+- Em alguns sistemas embarcados ocorre apenas a criação de tarefas e de alguns outros objetos do kernel antes do escalonador ser iniciado;
+- O Heap 1 implementa versões básicas do pvPortMalloc() e não implementa vPortFree().
+- Aplicações que nunca excluem tarefas ou objetos do kernel tem a possibilidade de usar o Heap 1.
+- Sistemas Comerciais críticos e criticos de segurança que proibem o uso de alocação dinÂmica também tem o potencial de usar o Heap 1, a alocção é proibida devido a falta de determinismo;
+- O tamanho total em bytes do array é definidio em config_TOTAL_HEAP_SIZE, dentro do arquivo FreeRTOSConfig
+<br>[↑](#Sumário) 
+
+#### HEAP 2
+- Heap 2 é mantido por questão de compatibilidade com versões anteriores do freeRTOS;
+- Não é recomendado seu uso atual, tendo o Heap 4 substituindo-o muito bem;
+- Assim como o Heap 1 seu tamanh é definido por "FreeRTOSConfig" na definição para 1 de config_TOTAL_HEAP_SIZE;
+- O algoritmo de melhor ajuste garante que pvPotMaloc() use bloco de memória livre com tamanho mais próximo ao numero de bytes solicitados;
+- Ao contrário do Heap_4 o healp_2 não combina blocos livres adjacentes em um unico bloco mmaior, sndo mais sucetivel 
+- O Heap 2 não é deterministico, mais e mais rápido que a maioria das implementalçies das implementações de biblioteca padrão de malloc() e free() 
+<br>[↑](#Sumário) 
+
+#### HEAP 3 
+- Usa as funções malloc() e free() da biblioteca padrão, portanto o tamanho do healp é definidio pela configuração do vinculador e a configuração  de config_TOTAL_HEAP_SIZE não possui efeito;
+- Heap 3 torna malloc() e free() thread-safe suspendendo temporariamente o agendador do freeRTOS
+<br>[↑](#Sumário) 
+
+#### HEAP 4
+- O tamanho do HEAP 4 é definidio em config_TOTAL_HEAP_SIZE, assim como o HEAP 1 e 2 
+- Esse método de configuração da a impressão que a aplicação consome muita RAM, mesmo antes de qualquer alocamento tenha ocorrido 
+- Usa o algorítmo de primeiro ajuste para alocar memória;
+- Ao contrário do Heap 2, o Heap 4 aglutina os blocos de memória livres adjacentes em um unico bloco maior, minimizando o risco de fragmentação de memória 
+- O algoritmo de ajuste garante que pvPortMalloc() use o promeiro bloco de memória lire suficiente para conter os bytes solicitados 
+- Permite ocorrer a liberação repetidamente de blocos de tamanho diferentes de memoria uma vez que objetos podem deixar de existir liberando o espaço anteriormente utilizado.
+- Não é deterministico, entretanto é mais rápido que a maioria das implementações de das bibliotecas padrão malloc e free
+<br>[↑](#Sumário) 
+
+#### HEAP 5
+- O algoritmo usado para alocar e liberar memória é identico ao usado pelo HEAP 4. Diferente do HEAP 4, o HEAP 5 não se limita a alocar memória de um unico array, podendo alocar memória de vários espaços separados;
+- Quando HEAP 5 é usado vPortDefineHEAPRegions() deve ser chamado antes que qualquer objeto do kernel (tarefas, filas, semáforos e etc...)
+<br>[↑](#Sumário) 
+
+### Funções utilitárias relacionadas a Heap
+
+#### Função de API xPortGetFreeHeapSize()
+- Retorna o número de bytes livres no heap no momento em que a função é chamada;
+- Não esta disponível para o HEAP_3;
+<br>[↑](#Sumário) 
+
+#### Função de API xPortGetMinimumEverFreeHeapSize()
+- Retorna o número minimo de bytes não alocados que já existiram no heap desde que o aplicativo FreeRTOS começou a ser executado;
+    - Retorna quantos bytes que faltaram para um stack no momento mais critico;
+- Disponível quando HEAP 4 ou HEAP 5 é usado
+<br>[↑](#Sumário) 
+
+## Gerenciamento de tarefas
+- Este é o capítulo mais detalhado 
+<br>[↑](#Sumário) 
+
+### Funções da Tarefa
+- Tarefas são implementadas como funções C;
+- Essa função sempre deve retornar void e receber um parâmetro de ponteiro void
+~~~c
+    void ATaskFunction(void *pvParameters);
+~~~
+- Cada tarefa é um pequeno programa em seu próprio direito;
+- Possui um ponto de entrada, normalmente será executado para sempre em um loop infinito;
+- As tarefas do FreeRTOS não devem ter permissão para trornar de sua função de implementação de forma alguma, não devendo conter a instrução "return"
+- Caso uma tarefa não seja mais necessária, ela deverá ser excluida;
+- Uma unica definição de tarefa pode ser usada para criar qualquer número de tarefas
+    - Cada tarefa criada é uma instancia de execução separada, com sua propria pilha e sua própria cópia de quaisquer variáveis 
+- Esqueleto de uma tarefa
+~~~c
+    void ATaskFunction(void *pvParameters) {
+        /*
+         * Variaveis podem ser declaradas como em uma função normal.
+         * Tarefas criadas dinamicamente podem fazer uso de uma mesma função para ser criada, caso a criação da tarefa seja estática
+         * apenas pode ser criada uma tarefa por função
+         */
+         uint32_ ulVariableExample = 0;
+
+        //Uma tarefa normalmente será implementada como um loop infinito 
+         for(;;) {
+             //O código para implementar a funcionamidade da tarefa fica aqui 
+         }
+         /*Caso a implementação da tarefa saia do loop acima, a tarefa deve ser excluida antes de chegar ao final de sua função de
+          * implementação. O parametro NULL passado para a função API vTaskDelete() indica que a tarefa a ser exclída é a tarefa
+          * em que a função esta sendo executada 
+          */
+          vTaskDelete(NULL);
+    }
+~~~
+<br>[↑](#Sumário) 
+
+### Estados de Tarefas de Nível Superior 
+- Um aplicativo pode consistir em muitas tarefas;
+- Uma tarefa pode existir em dois estados possiveis, "em execução" e "não execução". 
+    - A condição de "não execução" possui vários subestados 
+- Quando uma tarefa esta no estado "Running" o processador esta executando código da tarefa;
+- Quando uma tarefa esta no estado "não execução", a tarefa esta inativa, seu status foi salvo e esta pronto para retornar a execução na proxima vez em que o agendador decidir que deve entrar no estado "em execução (Running);
+- Quando uma tarefa retoma a execução, ela faz a partir da instrução que esta prester a ser executada antes de sair do estado "em execução"
+- Quando uma tarefa sai do estado de "não execução" para o estado de "execução" diz-se que foi "comutada";
+- Quando uma tarefa sai do estado de "execução" para o estado de "não execução" diz-se que foi "desativada"
+- O agendador do FreeRTOS é a única entidade que pode ativar e dsativar uma tarefa.
+
+### Função da API xTaskCreate()
+- As taefas são criadas usando a função da API FreeRTOS xTasCreate(), sendo provavelmente a mais complexa de todas as funções da API;
+- Estrutura da função
+~~~c
+    BaseType_t xTaskCreate(
+        TaskFunctio_t pvTaskCode,
+        const char *,
+        uint'6_t usStackDepth,
+        void *pvParameters,
+        uBaseType_t uxPriority,
+        TaskHandle_t *pxCreatedTask
+    )
+~~~
+
+|Nome do Parametro| Descrição|
+|:---|:---|
+|pvTaskCode| O parametro pvTaskCode é simplesmente um ponteiro para a função que implementa a tarefa (na verdade, apenas o nome da função|
+|constpcName|Um nome descritivo para a tarefa. Não é usado pelo FreeRTOS de forma alguma. Ele é incluído apenas como um auxílio de depuração. A constante definida pelo aplicativo configMAX_TASK_NAME_LEN define o comprimento máximo que um nome de tarefa pode ter. Fornecer uma string maior que esse valor máximo resultará na string sendo truncada|
+|usStackDepth| Cada tarefa possui sua própria pilha excluisva que é alocada pelo kernel para a tarefa quando a mesma é criada. O valor de usStackDepth informa ao kernel o tamanho da pilha. O valor especifica o numero de palavras que a pilha pode conter, não o numero de bytes. Em um sistema de 32bits todo valor passado internamente é multiplicado por 4. O tamanho de uma pilha multiplicado pela largura nçao deve exceder o valor maximo que pode estar contido em uma variavel do tipo uint16_t. O tamanho da pilha usada pela tarefa Idle é definida pela constante definida pelo aplicativo em configMINIMAL_STACK_SIZE. O valor atribuido a essa constante no aplicativo de demonstração do FreeRTOS para a arquitetura do processador em uso é o minimo recomendado para qualquer tarefa. Uma tarefa nunca deve utilizar mais espaço do que o necessário. Não existe uma maneira fácil de determinar o espaço de pilha necessário para uma tarefa. É possivel calcular, mas a maioria dos usuarios simplesmente atribuirá o que ele achar ser um valor razoavel. Esse espaço é consumido da RAM, logo, um recurso escaço |
+|pvParameters|As funções de tarefa aceitam um parametro do tipo ponteiro void. O valor atribuito a pvParameters é o valor passado para a tarefa.|
+|uxPriority|Define a prioridade na qual a tarefa será executada. As prioridades podem ser atribuidas de 0 que é a prioridade mais baixa, (configMAX_PRIORITIES -1) sendo o valor da prioridade mais alta. configMAX_PRIORITIES é uma constante definida pelo usuário. Passar um valor uxPriority acima do configurado resultará na no valor maximo -1 configurado na constante|
+|pxCreatedTask|pxCreatedTask pode ser usado para passar um identificador para a tarefa que esta sendo criada. Esse identificador pode ser usado para fazer uma referência a tarefa em chamadas de API, caso não seja utilizado pode-se atribuir o valor NULL|
+
+- Valor devolvido da função xTaskCreate()
+    - pdPASS: Indica que a tarefa foi criada com sucesso
+    - pdFALSE: Indica que a tarefa não foi criada porque nao há memória heap suficiente disponivel para o FreeRTOS;
+
+### Criando Tarefas 
