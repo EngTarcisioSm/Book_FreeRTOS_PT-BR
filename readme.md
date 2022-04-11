@@ -47,6 +47,18 @@ ___
     - [Estados de Tarefas de Nível Superior](#Estados-de-Tarefas-de-Nível-Superior)
     - [Função da API xTaskCreate()](#Função-da-API-xTaskCreate())
     - [Criando Tarefas](#Criando-Tarefas) 
+        - [Utilizando parametro da Task](#Utilizando-parametro-da-Task)
+    - [Prioridade de Tarefas](#Prioridade-de-Tarefas)
+    - [Medição de tempo e Interrupção de Tick](#Medição-de-tempo-e-Interrupção-de-Tick)
+        - [pdMS_TO_TICK()](#pdMS_TO_TICK())
+    - [Expandindo o estado "Não em execução"](#Expandindo-o-estado-"Não-em-execução")
+    - [Estados de tarefas](#Estados-de-tarefas)
+        - [Estado Bloqueado](#Estado-Bloqueado)
+        - [Estado Suspenso ](#Estado-Suspenso)
+        - [Estado Pronto](#Estado-Pronto)
+        - [Fluxograma de Estados](#Fluxograma-de-Estados)
+    - [Usando o estado Bloqueado para criar um atraso ](#Usando-o-estado-Bloqueado-para-criar-um-atraso )
+        - [vTaskDelay()](#vTaskDelay())
 ___
 ## Multitarefa em pequenos sistemas embarcados 
 [↑](#Sumário) 
@@ -410,5 +422,184 @@ int main(void){
 - Valor devolvido da função xTaskCreate()
     - pdPASS: Indica que a tarefa foi criada com sucesso
     - pdFALSE: Indica que a tarefa não foi criada porque nao há memória heap suficiente disponivel para o FreeRTOS;
+<br>[↑](#Sumário) 
 
 ### Criando Tarefas 
+- Exemplo de criação de uma tarefa 
+~~~c
+    void vTask1(void *pvParameters) {
+
+        const char *pcTaskName = "A tarefa 1 esta em execução \r\n";
+
+        //volatile faz com quem o compilador não otimize a a variavel 
+        volatile  uint32_t ulCount;
+
+        for(;;) {
+            vPrintString(pcTaskName);
+
+            //implementação de atraso grosseira 
+            for(ulCount = 0; ulCOunt < mainDELAY_LOOP_COUNT; ulCount++);
+        }
+    }
+
+    int main(void){
+
+        /*
+        Cria tarefa, em um aplicativo real deve verificar o valor de retorno de TaskCreate para garantir que a tarefa foi criada com sucesso
+        */
+        xTaskCreate(
+            vTask1, /* Ponteiro para a função que implementa a tarefa */
+            "Task1", /* Nome de texto para a tarefa. Isso é para facilitar apenas depuração */
+            1000, /* Profundidade da pilha - microcontroladores pequenos usarão muito menos pilha do que esse valor */
+            NULL, /* Não usa o parametro tast  */
+            1, /* prioridade de nivel 1 */
+            NULL /* Não usa identificador de tarefa */
+        );
+        /* Inicia o escalonador para que as tarefas comecem a ser executada */
+        vYaskStartScheduler();
+
+        /*Tudo dando certo a tarefa nunca chegará aqui, se chegar ocorreu stack over flow */
+        for(;;);
+    }
+
+~~~
+- Apenas uma tarefa pode existir no estado "Em Execução" a qualquer momento. Quando uma tarefa entra no estado "Em execução" as demais devem entrar em estado de "não execução"
+    ![tarefas em execucao](/img/0001.png)
+
+- É possivel chamar a função xTaskCreate() dentro de outra tarefa 
+<br>[↑](#Sumário) 
+
+#### Utilizando parametro da Task 
+- A task criada possui um paramtro passado que pode ser utilizado ("pvParameters")
+
+~~~c
+    void vTask(void *pvParameters) {
+        const char *pcTaskName;
+        volatile uint32_t ulAux;
+
+        pcTaskName = (char *) pvParameters;
+
+        for(;;) {
+            vPrint(pcTaskName);
+            
+            //delay ou bloqueio de tarefa
+        }
+    }
+
+    static const char *pcTextForTask1 = "A tarefa 1 esta em execucao\r\n";
+    static const char *pcTextForTask2 = "A tarefa 2 esta em execucao\r\n";
+
+    int main(void) {
+        xTaskCreate(
+            vTaskFunction, /* ponteiro para a função */
+            "Tarefa1", /* Texto nome task para depuracao */
+            1000, /* Tamanho da pilha para tarefa */
+            (void *) pcTextForTask1, /* parametro passado por pvParameters */
+            1, /* prioridade da tarefa */
+            NULL /* identificador da tarefa não utilizado nesse momento */
+        );
+
+        xTaskCreate(
+            vTaskFunction, /* ponteiro para a função */
+            "Tarefa2", /* Texto nome task para depuracao */
+            1000, /* Tamanho da pilha para tarefa */
+            (void *) pcTextForTask2, /* parametro passado por pvParameters */
+            1, /* prioridade da tarefa */
+            NULL /* identificador da tarefa não utilizado nesse momento */
+        );
+
+        vTaskStartScheduler();
+    } 
+~~~
+
+- Desta forma é possivel com apenas uma função de tarefa, essa poder ter mais de uma tarefa criada, apresentando comportamentos diferentes;
+<br>[↑](#Sumário) 
+
+### Prioridade de Tarefas
+- O parametro uxPriority da função xTaskCreate() atribui uma prioridade inicial a tarefa que esta sendo criada;
+- A prioridade pode ser alterada depois que o agendador foi iniciado usando a função vTaskPrioritySet();
+- O número máximo de prioridades é definido pela constante de configuração  "configMAX_PRIORITIES" localizada dentr "FreeRTOSConfig.h"
+- Valores baixo denotam tarefas de baixa prioridade, sendo 0 a tarefa de mais baixo nível;
+- O intervalo de prioridade vai de 0 a (configMAX_PRIORITIES - 1);
+- Várias tarefas podem ter o mesmo nível de prioridade 
+- Se o método de arquitetura for otimizada, recomenda-se utilizar não mais que 32 prioridades. Quanto maior o numero de tarefas, maior o consumo de memória RAM
+- O agendador do FreeRTOS sempre garantirá que a tarefa de prioridade mais alta pode ser executada 
+<br>[↑](#Sumário) 
+
+### Medição de tempo e Interrupção de Tick
+- Cada tarefa é executada por uma fatia, entrand em execução no início de uma faixa de tempo e saindo do estado "em execução" no final de uma faixa de tempo;
+- Para poder selecionar a próxima tarefa a ser executada, o próprio agendador deve executar no final de cada fatia de tempo;
+- Uma interrupção periódica, chamada interrupção de tick é utilizada para esse propósito;
+A duração da fatia de tempo é efetivamente definida pela frequencia de interrupção de tique, que é configurada pela constante de tempo de compilação "configTICK_RATE_HZ" definido "FreeRTOSConfig.h"
+    - Se configTICK_RATE_HZ é definidio como 100Hz a fatia de tempo será de 100milissegundos
+- Exemplo de execução em duas tarefas:<br>
+    ![exemplo](/img/0002.png)
+- As chamadas da API FreeRTOS sempre especificam o tempo em multiplos de períodos de tiques. 
+<br>[↑](#Sumário) 
+
+#### pdMS_TO_TICK()
+- Converte um tempo especificado em milissegundos em tempo especificado em ticks
+~~~c
+    //retorna o valor convertido de milissegundos para ticks
+    TickType_t xTimeInTicks = pdMS_TO_TICKS( valor_em_ms );
+~~~
+- Os aplicativos do usuário não precisam considerar estouros ao especificar períodos de atraso, pois a consistência de tempo é gerenciada internamente pelo FreeRTOS;
+<br>[↑](#Sumário) 
+
+### Expandindo o estado "Não em execução"
+- Tarefas de processamento contínuo, ou seja que não são bloqueadas de alguma forma, possuem utilidade limitada, pois só podem ser criadas com prioridades mais baixas para que tenham alguma sentido, caso utilizem altas prioridades não permitiram que as demais tarefas de prioridades menores sejam executadas 
+- Para tornar as tarefas úteis, elas devem ser reescritas para serem orientadas a eventos. Tarefas orientadas a eventos tem processamento a ser executado somente após a ocorrencia de algum evento que a acione.
+- Usar tarefas orientadas a eventos significa que as tarefas podem ser criadas em diferentes prioridades sem que as tarefas de prioridade mais alta abafem o funcionamento de tarefas de prioridades mais baixas 
+<br>[↑](#Sumário) 
+
+### Estados de tarefas 
+
+#### Estado Bloqueado
+- Diz-se que uma tarefa que esta aguardando um evento esta no estado "Bloqueado", que é um subestado do estado "Em não Execução"
+- As tarefas podem entrar no estado Bloqueado para aguardar dois tipos diferentes de eventos: 
+    - Eventos temporais(relacionados a tempo): o evento sendo um periodo de atraso.
+        - Exemplo: Uma tarefa pode entrar no estado Bloqueado para aguardar a passagem de 10ms
+    - Evento de sincronização: onde os eventos se originam de outra tarefa ou interrupção. 
+        - Exemplo: Uma tarefa pode entrar no estado Bloqeuado para aguardar a chegada de dados de uma fila. Eventos de sincronização abrangem uma ampla variedade de tipos de eventos 
+        - Filas, semáforos, mutex, eventgroups e notificações podem ser usados para criar eventos de sincronização 
+<br>[↑](#Sumário) 
+
+#### Estado Suspenso 
+- Também é um sub estado de "em não execução". Tarefas no estado Suspenso não estão disponiveis para o agendador. Aúnica maneira de entrar em estado Suspenso é por meio da chamada  de vTaskSuspend(), sendo a unica saída por meio de uma chamada de vTaskResume ou xTaskResumeFromISR(). A maioria dos aplicativos não usa o estado Suspenso 
+<br>[↑](#Sumário) 
+
+#### Estado Pronto
+- As tarefas que não estaõ no estado "Não executando", mais não estão bloqeuadas ou suspensas, são consilderadas no estado Pronto. Eles podems er executadas e, portanto, "prontas" para serem executadas, entretanto não estão no estado "execução" no momento.
+<br>[↑](#Sumário) 
+
+#### Fluxograma de Estados 
+![Estados](/img/0003.png)
+
+### Usando o estado Bloqueado para criar um atraso 
+- A função vTaskDelay() esta disponível somente quando INCLUDE_vTaskDelay é definido com o valor 1 em FreeRTOSConfig.h;
+- vTaskDelay() coloca a tarefa de chamada no estado Bloqueado para um número fixo de interrupções de tique. A tarefa não usa nenhum tempo de processamento enquanto estiver no estado Bloqueado, portanto, a tarefa só usa o tempo de processamento quando realmente há trabalho a ser feito;
+<br>[↑](#Sumário) 
+
+#### vTaskDelay()
+- void vTaskDelay(TickType_t xTicksToDelay)
+
+|Parâmetro| Descrição|
+|:---|:---|
+|xTicksToDelay| O número de interrupções de tique que a tarefa de chamada permanecerá no estado bloqueado antes de ser transferida de volta para o estado Pronto.<br> A macro pdMS_TO_TICKS() pode ser usada para converter um tempo especificado em milissegundos em um tempo especificado em ticks|
+
+- Exemplo de uso 
+~~~c
+    void vTaskFunction(void *pvParameters) {
+        char *pcTaskName;
+        const TickType_t xDelay250ms = pdMS_TO_TICKS( 250 );
+
+        pcTaskName = (char*)pcParameters;
+
+        for(;;) {
+            vPrintString( pcTaskName );
+
+            vTaskDelay( xDelay250ms );
+        }
+    }
+~~~
+<br>[↑](#Sumário) 
