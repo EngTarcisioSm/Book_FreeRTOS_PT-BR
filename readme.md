@@ -59,6 +59,13 @@ ___
         - [Fluxograma de Estados](#Fluxograma-de-Estados)
     - [Usando o estado Bloqueado para criar um atraso ](#Usando-o-estado-Bloqueado-para-criar-um-atraso )
         - [vTaskDelay()](#vTaskDelay())
+    - [Função API vTaskDelayUntil()](#Função-API-vTaskDelayUntil())
+        - [Exemplo de Task utilizando vTaskDelayUntil()](#Exemplo-de-Task-utilizando-vTaskDelayUntil())
+    - [Tarefa ociosa e gancho de tarefa ociosa](#Tarefa-ociosa-e-gancho-de-tarefa-ociosa)
+        - [Funções de gancho de Tarefas Inativas ](#Funções-de-gancho-de-Tarefas-Inativas)
+    - [Alterando a prioridade de uma tarefa](#Alterando-a-prioridade-de-uma-tarefa)
+        - [vTaskPrioritySet](#vTaskPrioritySet)
+        - [uxTaskPriorityGet](#uxTaskPriorityGet)
 ___
 ## Multitarefa em pequenos sistemas embarcados 
 [↑](#Sumário) 
@@ -602,4 +609,99 @@ A duração da fatia de tempo é efetivamente definida pela frequencia de interr
         }
     }
 ~~~
+- Na situação acima a tarefa assim que executa sua rotima ela entra em estado bloqueado, aguardando o periodo de delay, a qual estará em estado bloqueado 
+<br>[↑](#Sumário) 
+
+### Função API vTaskDelayUntil()
+- A função vTaskDelay() apresenta um tempo de bloqueio/desbloqueio da tarefa relativo;
+- vTaskDelayUntil() especifica o valor exato da contagem de tiques no qual a tarefa de chamada deve ser mobida do estado bloqueado para o estado pronto;
+    - Essa é a função na qual deve ser usada quando for necessário um período de execução fixo, o tempo em que a tarefa é chamada e desbloqueada e desbloqueada é absoluto e não relativo quando a função foi chamada vide TaskDelay()
+- A função:
+~~~c
+void vTaskDelayUntil( TickType_t *pxPreviousWakeTime, TickType_t xTimeIncrement );
+~~~
+
+|Nome do parametro| Descrição|
+|:---|:---|
+|pxPreviousWakeTime|Esse parâmetro é nomeado assumindo que vTaskDelaUntil() esta sendo usado para implementar uma tarefa que é executada periodicamente e com uma frequencia fixa. Neste caso pxPreviousWakeTime mantém a hora em que a tarefa deixou o estado Bloqueado plea ultima vez (e foi acordada). Esse tempo é usado como ponto de referência para ser bkiqueada.<br> A variavel apontada por pxPreviousWakeTime é atualizada automaticamente dentro da função |
+|xTimeIncrement|Esse parametro também é nomeado assumindo que vTaskDelayUntil() esta sendo usado para implementar uma tarefa que é executada periodicamente e com uma frequencia fixa, a frequencia sendo deficinida pelo valor de xTimeIncrement. <br> xTimeIncrement é especificado em 'tiques'. A macro pdMS_TO_TICKS() pode ser usada para converter um tempo especificado em milissegundos em um tempo especificado em ticks|
+
+#### Exemplo de Task utilizando vTaskDelayUntil()
+~~~c
+    void vTaskFunction(void *pvParameters) {
+        char *pcTaskName;
+        TickType_t xLastWakeTime;
+
+        pcTaskName = (char*) pvParameters;
+
+        /* A variavel xLastWakeTime precisa ser inicializada com a contagem de ticks atual. 
+         * Observe que esta é a única vez em que a variável é gravada explicitamente. Depois disso 
+         * xLastWakeTime é atualizado automaticamente em vTaskDelayUntil()
+         */
+        xLastWakeTime = xTaskGetTickCount();
+
+        for(;;) {
+            vPrintString(pcTaskName);
+            /*
+             * Esta tarefa deve ser executada exatamente a cada 250milissegundos. De acordo com a
+             * função vTaskDelay(), o tempo é medido em ticks e a macro pdMS_TO_TICKS() é usado 
+             * para converter milissegundos em ticks. xLastWakeTime é atualizado automaticamente 
+             * em vTaskDelayUntil(), portanto, não é atualizado explicitamente pela tarefa
+             */
+            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS( 250 ));
+        }
+    }
+~~~
+
+### Tarefa ociosa e gancho de tarefa ociosa 
+- As tarefas no estado Bloqueado, enquanto neste estado, não podem ser executadas, logo, não podem ser selecionadas pelo planejador;
+- Sempre deve haver pelo menos uma tarefa que pode entrar em estado "Em Execução". Para garantir que isso seja feito é criado sempre uma tarefa ociosa quando o agendador é invocador dentro do código (vTaskStartScheduler()).
+- A tarefa ociosa faz muito pouco;
+- A tarefa ociosa tem a prioridade mais baixa possivel (zero), garantindo que nunca impeça que uma tarefa de aplicativo de prioridade mais alta entre no estado "EM EXECUÇÂO", embora não haja nada que impeça os designers de aplicativos de criar tarefas que compartilhe a prioridade de tarefa ociosa. 
+- A constante de configuração de tempo de compilação configIDLE_SHOULD_YIELD em FreeRTOSConfig.h pode ser usada para evitar que a tarefa Idle consuma tempo de processamento que seria alocado de forma mais produtiva para tarefas de aplicativos.
+- A execução na prioridade mais baixa garante que a tarefa ociosa seja transferida do Estado "Em execução" assim que uma taefa de prioridade mais alta entrar no estado "Pronto";
+- Se o aplicativo desenvolvido usar a função de API vTaskDelete(), é essencial que a tarefa ociosa não fique sem tempo de processamento, pois ela é responsavel por limpar os recursos do kernel após a exclusão de uma tarefa 
+<br>[↑](#Sumário) 
+
+#### Funções de gancho de Tarefas Inativas 
+- É possivel adicionar funcionalidades especídifcas do aplicativo diretamente na tarefa ociosa por meio do uso de uma função de gancho ociosa, essa função é chamada automativamente pela tarefa ociosa uma vez por iteração do loop de tarefa ociosa 
+    - Usos:
+        - Executar uma funcionalidade de baixa prioridade em segundo plano de processamento contínuo;
+        - Medir a quantidade de capacidade de processamento sobressalente;
+        - Colocar o processador em um modo de baixo consumo de energia, fornecendo um método fácil e automatico de economizar energia sempre que não existir nenhum processamento de aplicativo a ser executado;
+    - Limitações(As funções de gancho devem seguir algumas regras):
+        - Uma função de gancho de tarefa ociosa nunca deve tentar bloquear ou suspender 
+    - Se o aplicativo fizer uso da função de API vTaskDelete(), o gancho de tarefa ocioso sempre deverá retornar ao chamador dentro de um período de tempo razoavel. A Tarefa ociosa é responsavel por limpar recursos do kernel após a exclusão de uma tarefa 
+- As funções de gancho de tarefa ociosa devem ter o nome e o protótipo mostrados abaixo:
+~~~c
+vApplicationIdleHook(void);
+~~~
+    - Para que a função de gancho ociosa seja chamada configUSE_IDLE_HOOK deve ser definidio como 1 em FreeRTOSConfig.h para que a função de gancho ocioso seja chamada 
+<br>[↑](#Sumário) 
+
+### Alterando a prioridade de uma tarefa
+
+#### vTaskPrioritySet
+- A função API vTaskPrioritySet() pode ser usada para alterar a prioridade de qualquer tarefa depois que o agendador foi iniciado. Esta função esta disponível apenas quando INCLUDE_vTaskPrioritySet é definidio como 1 em FreeRTOSConfig.h
+- A função:
+~~~c 
+void vTaskPrioritySet(TaskHandle_t pxTask, UBaseType_t uxNewPriority)
+~~~
+
+|Nome Parametro|Descrição|
+|:---|:---|
+|pxTask|Identificador da tarefa cuja prioridade esta sendo modificadada. Identificador nada mais é do que o nome da função que originou a tarefa. Para modificar a propria prioridade utilizar "NULL"|
+|uxNewPriority|A prioridade para qual a tarefa deve ser definida. Issio é limitado automaticamente a prioridade máxima disponivel de "configMAX_PRIORITIES-1" alocada em FreeRTOSConfig|
+<br>[↑](#Sumário) 
+
+#### uxTaskPriorityGet
+- A função uxTaskPriorityGet() pode ser usada para consultar a prioridade de uma tarefa. Esta disponivel somente quando INCLUDE_uxTaskPriorityGet é definidio como 1 em FreeRTOSConfig.h
+- A função:
+~~~c
+UBaseType_t uxTaskPriorityGet(TaskHandle_t pxTask);
+~~~
+|Parametro|Descrição|
+|:---|:---|
+|pxTask| O identificador cuja prioridade esta sendo consultada, quando para consultar sua proria prioridade passa-se NULL no lugar do identificador|
+|Retorno| A prioridade atualmente atribuida a tarefa que esta sendo consultada|
 <br>[↑](#Sumário) 
