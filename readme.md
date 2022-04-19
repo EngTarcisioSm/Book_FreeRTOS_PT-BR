@@ -66,6 +66,12 @@ ___
     - [Alterando a prioridade de uma tarefa](#Alterando-a-prioridade-de-uma-tarefa)
         - [vTaskPrioritySet](#vTaskPrioritySet)
         - [uxTaskPriorityGet](#uxTaskPriorityGet)
+        - [Exemplos de manipulação de vTaskPrioritySet e uxTaskPriorityGet](#Exemplos-de-manipulação-de-vTaskPrioritySet-e-uxTaskPriorityGet)
+    - [Excluindo uma Tarefa](#Excluindo-uma-Tarefa)
+    - [Algoritmos de Agendamento](#Algoritmos-de-Agendamento)
+        - [Recapitulação de estados de tarefas e eventos ](#Recapitulação-de-estados-de-tarefas-e-eventos)
+        - [Configurando o algoritmo de agendamento ](#Configurando-o-algoritmo-de-agendamento)
+
 ___
 ## Multitarefa em pequenos sistemas embarcados 
 [↑](#Sumário) 
@@ -704,4 +710,103 @@ UBaseType_t uxTaskPriorityGet(TaskHandle_t pxTask);
 |:---|:---|
 |pxTask| O identificador cuja prioridade esta sendo consultada, quando para consultar sua proria prioridade passa-se NULL no lugar do identificador|
 |Retorno| A prioridade atualmente atribuida a tarefa que esta sendo consultada|
+<br>[↑](#Sumário) 
+
+#### Exemplos de manipulação de vTaskPrioritySet e uxTaskPriorityGet
+- Alterando prioridade de outra tarefa
+~~~c
+void vTask1(void *pvParameters) {
+
+    UBaseType_t uxPriority;
+
+    uxPriority = uxTask PriorityGet( NULL );    //obtendo o dado de nivel de prioridade da propria tarefa
+
+    for(;;) {
+        vPrintString ("Task 1 em execução \r\n");
+
+        vPrintString("Aumentando a prioridade da Task2\n");
+
+        vTaskPrioritySet( xTask2Handle, (uxPriority + 1));  //xTask2Handle a variavel utilizada para tasknotify
+    }
+}
+~~~
+- Alterando a propria prioridade 
+
+~~~c
+void vTask(void *pvParameters) {
+    
+    UBaseType_t uxPriority;
+
+    uxPriority = uxTaskPriorityGet( NULL );
+
+    for(;;){
+        vPrintString( "Tarefa 2 esta em execução! \r\n");
+
+        vPrintString( "Diminuindo o nível de prioridade da tarefa 2 nela propria! \r\n");
+        vTaskPrioritySet( NULL, (uxPriority -2 ));
+    }
+}
+~~~
+<br>[↑](#Sumário) 
+
+### Excluindo uma Tarefa
+
+- A função da API vTaskDelete()
+- Uma tarefa pode usar a função da API vTaskDelete() para excluir a si mesma ou a qualquer outra tarefa. Esta disponivel apenas quando INCLUDE_vTaskDelete é definido comno 1 em FreeRTOSConfig.h 
+- Tarefas excluidas não existem mais e não podem entrar no estado em Execução novamente.
+- Como ja dito anteriormente é responsabilidade da tarefa ociosa liberar memória alocada para tarefas que já foram excluidas 
+    - Qualquer memória ou outro recurso que a execução da tarefa alocar deve ser liberado explicitamente 
+- Função:
+~~~c
+    void vTaskDelete( TaskHandle_t pxTaskToDelete );
+~~~
+|Parametro|Descrição|
+|:---|:---|
+|pxTaskToDelete|O identificador da tarefa que deve ser excluída. A tarefa pode se excluir passando NULL no lugar de um identificador de tarefa válido |
+
+- Exemplo de utilização
+
+~~~c
+int main(void) {
+    xTaskCreate(vTask1, "Task1", 1000, NULL, 1, NULL);
+
+    vTaskStartScheduler();
+}
+
+TaskHandle_t xTask2Handle = NULL;
+
+void vTask1(void *pvParameters) {
+
+    const TickType_t xDelay100ms = pdMS_TO_TICKS( 100UL );
+
+    for(;;) {
+        vPrintString(" Tarefa 1 em execução\r\n ");
+
+        xTaskCreate(vTask2, "Tarefa 2", 1000, NULL, 2, &Task2Handle);
+
+        vTaskDelay( xDelay100ms );
+    }
+}
+
+void vTask2( void *pvParameters ) {
+
+    vPrintString( "A tarefa 2 esta em execução e prestes a ser deletada \r\n" );
+    vTaskDelete( xTask2Handle );
+}
+~~~
+<br>[↑](#Sumário) 
+
+### Algoritmos de Agendamento
+
+#### Recapitulação de estados de tarefas e eventos 
+- A tarefa que esta realmente em execução, esta no estado "Em Execução". Em um processador de núcleo único só pode haver uma tarefa no estado "Em Execução" a qualquer momento.
+- Tarefas que não estão em execução, mais que também não estão no estado Bloqueado ou Suspenso, estão no estado  "Pronto". As tarefas que estão no estado pronto estão disponiveis para serem selecionadas pelo agendador como a tarefa para entrar no estado "Em execução". O agendador sempre escolherá a tarefa de estado Pronto de prioridade mais alta para entrar no estado "Em Execução".
+- As tarefas podem aguardar um evento no estado Bloqueado e são automaticamente movidas de volta para o estado "Pronto" quando o evento ocorre. Os eventos temporais ocorrem em um determinado momento. Os eventos de sincronização ocorre quando uma tarefa ou rotina de serviço de interrupção envia informações usando uma notificação de tarefa, fila, grupo de eventos ou um dos tipos de semáforo, são geramente usado para sinalizar atividade assíncrona, como dados que chegam de um periférico. 
+<br>[↑](#Sumário) 
+
+#### Configurando o algoritmo de agendamento 
+- O algoritmo de escalonamento é a rotina de software que decide qual tarefa do estado Pronto deve fazer a transição para o estado "Em Execução".
+- O algoritmo de agendamento pode ser alterado usando as constantes de configuração configUSE_PREEMPTION e configUSE_TIME_SLICING. Ambas as constantes são definidas em FreeRTOSConfig.h 
+- Uma terceira constante de configuração, configUSE_TICKLESS_IDLE, também afeta o aloritmo de agendamento, pois seu uso pode resultar no desligamento completo da interrupção de tick por longos periodos. configUSE_TICKLESS_IDLE é uma opção avançada fornecida especificamente para uso em aplicitavios que devem minimizar o seu consumo de energia, essa constante é descrita mais a frente fornecendo suporte de baixa potencia. As descrições fornecidas nesta seção assumem que configUSE_TICKLESS_IDLE esta definido como 0, que é a configuração padrão se a constante for deixada indefinida 
+    - Em todas as configurações possiveis, o agendador do FreeRTOS garantirá que as tarefas que compartilham uma prioridade sejam selecionadas para entrar no estado "Em Execução" por sua vez. A polityica de revesamento é conhecida como "Agendamento Round Robin". Um algoritmo de agendamento ROUND Robin não garante que o tempo seja compartilhado igualmente entre as tarefas de igual prioridade, apenas que as tarefas de estado Pronto de igual priorioridade entrarão no estado "em Execução" por sua vez.
 <br>[↑](#Sumário) 
