@@ -71,9 +71,20 @@ ___
     - [Algoritmos de Agendamento](#Algoritmos-de-Agendamento)
         - [Recapitulação de estados de tarefas e eventos ](#Recapitulação-de-estados-de-tarefas-e-eventos)
         - [Configurando o algoritmo de agendamento ](#Configurando-o-algoritmo-de-agendamento)
-
+        - [Agendamento preventivo priorizado com divisão de tempo](#Agendamento-preventivo-priorizado-com-divisão-de-tempo)
+        -[Agendamento Preemptivo Priorizado (sem Fatia de Tempo)](#Agendamento-Preemptivo-Priorizado-(sem Fatia de Tempo))
+        - [Agendamento Cooperativo](#Agendamento-Cooperativo)
+- [Gestão de filas (QUEUE)](#Gestão-de-filas-(QUEUE))
+    - [Introdução](#Introdução)
+    - [Caracteristica de uma fila ](#Caracteristica-de-uma-fila)
+        - [Acesso por várias tarefas](#Acesso-por-várias-tarefas)
+        - [Bloqueio em leitura de fila](#Bloqueio-em-leitura-de-fila)
+        - [Bloqueio em gravações de fila](#Bloqueio-em-gravações-de-fila)
+        - [Bloqueio em várias filas](#Bloqueio-em-várias-filas)
+    -[Usando uma fila ](#Usando-uma-fila)
+        -[A função de API xQueueCreate()](#A-função-de-API-xQueueCreate())
 ___
-## Multitarefa em pequenos sistemas embarcados 
+
 [↑](#Sumário) 
 ### Sobre o FreeRTOS
 
@@ -810,3 +821,119 @@ void vTask2( void *pvParameters ) {
 - Uma terceira constante de configuração, configUSE_TICKLESS_IDLE, também afeta o aloritmo de agendamento, pois seu uso pode resultar no desligamento completo da interrupção de tick por longos periodos. configUSE_TICKLESS_IDLE é uma opção avançada fornecida especificamente para uso em aplicitavios que devem minimizar o seu consumo de energia, essa constante é descrita mais a frente fornecendo suporte de baixa potencia. As descrições fornecidas nesta seção assumem que configUSE_TICKLESS_IDLE esta definido como 0, que é a configuração padrão se a constante for deixada indefinida 
     - Em todas as configurações possiveis, o agendador do FreeRTOS garantirá que as tarefas que compartilham uma prioridade sejam selecionadas para entrar no estado "Em Execução" por sua vez. A polityica de revesamento é conhecida como "Agendamento Round Robin". Um algoritmo de agendamento ROUND Robin não garante que o tempo seja compartilhado igualmente entre as tarefas de igual prioridade, apenas que as tarefas de estado Pronto de igual priorioridade entrarão no estado "em Execução" por sua vez.
 <br>[↑](#Sumário) 
+
+#### Agendamento preventivo priorizado com divisão de tempo
+
+- A configuração abaixo é utilizado no escalonamento chamado 'Fixed Priority Preemptive Scheduling with Time Slicing'. É o algoritmo usado na maioria dos pequenos aplicativos RTOS 
+
+- Configuração efetuada no arquivo FreeRTOSConfig.h
+
+| Constantes | Valor |
+|:---|:---|
+| configUSE_PREEMPTION | 1 |
+| configUSE_TIME_SLICING | 1 |
+
+- Definição dos termos usados na politica de agendamento 
+
+|Prazos|Definição|
+|:---|:---|
+|Prioridade Fixa| Os algoritmos de agendamento descritos como Prioridade Fixa não alteram a prioridade atribuida às tarefas que estão sendo agendadas, mas também não impedem que as próprias tarefas alterem sua própria prioridade ou a de outras tarefas|
+|Preventivo|Os algoritmos de agendamento preventivo irão previnir imediatamente a tarefa de estado "Em Execução" se uma tarefa com prioridade maior que a tarefa de estado "Em Execução" entrar no estado Pronto. Ser antecipado significa ser involuntariamente (sem ceder ou bloquear explicitamente) movido para fora do esta "EM Execução" para o estado Pronto para permitir que uma tarefa diferente entre no estado "Em Execução|
+|Fatiar Tempo|O fatimaneto de tempo é usado para compartilhar o tempo de processamento entre tarefas de igual prioridade, mesmo quando as tarefas não cedem explicitamente ou entrem no estado Bloqueado. Os algoritmos de agendamento descritos como usando "Time Slicing" selecionarão uma nova tarefa para entrar no estado Running no final de cada fatia de tempo se houver outras tarefas no estado Ready que tenham a mesma prioridade que a tarefa Running. Uma fatia de tempo é igual ao tempo entre duas interrupções de tick RTOS.|
+
+- Alocar muito tempo de processamento para a task Idle pode ser não desejavel, para efetuar configurações sobre esse processo existe a constante configIDLE_SHOULD_YIELD
+    - Se configIDLE_SHOULD_YIELD for definidio como 0, a tarefa Idle permanecerá em Execução em sua totalidade de tempo, a menos que seja preemptado por uma tarefa de prioridade mais alta
+    - Se configIDLE_SHOULD_YIELD for definido como 1, a tarefa Idle ira render (fornecer voluntariamente o que resta de sua fatia de tempo alocada) em cda iteração de seu loop se houver outras tarefas de prioriudade ociosa no estado Pronto
+<br>[↑](#Sumário) 
+
+#### Agendamento Preemptivo Priorizado (sem Fatia de Tempo)
+- O agendamento preemptivo priorizado sem divisão de tempo mantém a mesma seleção de tarefas e algoritmos de preempção descritos na seção anterior, mais não usa divisão de tempo para compartilhar o tempo de processamento entre tarefas de igual prioridade;
+- As condifurações do FreeRTOSConfig.h que configuram o agendador do FreeRTOS para usar o agendador preemptivo priorizado sem divisão de tempo são descritos abaixo 
+
+| Constantes | Valor |
+|:---|:---|
+| configUSE_PREEMPTION | 1 |
+| configUSE_TIME_SLICING | 0 |
+
+- Se o fatiamento de tempo não for usado, o agendador selecionará apenas uma nova tarefa para inserir o estado "Em Execução" quando:
+    - Uma tarefa de prioridade mais alta entra no estado pronto
+    - A tarefa no estado "em execução" entra no estado bloqueado ou Suspenso 
+- Desativar o fatiamento de tempo pode resultar em tarefas de igual prioridade recebendo quantidades muito diferentes de tempo de processamento;
+<br>[↑](#Sumário) 
+
+#### Agendamento Cooperativo 
+
+- As configurações do FreeRTOSConfig.h que configuram o agendador do FreeRTOS para usar programação cooperativa são descritos abaixo 
+
+| Constantes | Valor |
+|:---|:---|
+| configUSE_PREEMPTION | 0 |
+| configUSE_TIME_SLICING | Qualquer Valor |
+
+- Quando o escalonador cooperativo é usado, a troca de contexto só ocorre quando a função running entra em estado bloqueado, ou a tarefa chama a função taskYIELD(), As tarefas nunca são antecipadas, portanto o fatiamento de tempo não é utilizado.
+<br>[↑](#Sumário) 
+
+## Gestão de filas (QUEUE) 
+
+### Introdução
+- As 'filas' fornecem uma comunicação tarefa a tarefa, tarefa a interrupção, e interrupção a tarefa;
+[↑](#Sumário) 
+
+### Caracteristica de uma fila 
+- Uma fila pode conter um número finito de itens de dados de tamanho fixo. O número máximo de itens que uma fila pode conter é chamado de 'comprimento'. O tipo de dado da fila e o seu comprimento são definidos quando a fila é criado.
+- As filas são normalmente usadas como buffer FIFO (first in first out). É possivel também gravar dados na frente da fila, sobrescrever os dados que ja estão em uma fila
+- Existem duas maneiras pelas quais o comportamento da fila pode ser implementado:
+    - Fila por cópia
+        - Significa que os dados enviados para a fila são copiados byte por byte na fila
+    - Fila por referencia 
+        - A fila contém apenas ponteiros para os dados enviados a fila, não os dados em sí
+
+- O FreeRTOS usa a fila pelo método de cópia, pois é considerado mais poderoso e mais simples de usar do que o enfileiramento por referência devido a:
+    - A variável de pilha pode ser enviada diretamente para uma fila , mesmo que a variavel não exista após a saída da função na qual ele é declarado
+    - Os dados podem ser enviados para uma fila sem primeiro alocar um buffer para armazenar os dados e, em seguida, copiando os dados para o buffer alocado;
+    - A tarefa de envio e a tarefa de recebimento são completamente desacopladas, o aplicativo não precisa se preocupar com qual tarefa possui dados, ou qual talrefa é responsavel por liberar dados 
+    - A tarefa de envio pode reutilizar imediatamente a variavel ou buffer que foi enviado a fila
+    - O enfileiramento por cópia não impede que a fila também seja usada para enfileirar por referência. QUando o volume de dados torna-se alto, filas por referência tornam-se essenciais 
+    [↑](#Sumário) 
+
+
+#### Acesso por várias tarefas
+- Filas são objetos por si só que podem ser acessados por qualquer tarefa ou ISR que conheça sua existencia. QUalquer número de tarefas pode gravar na mesma fila e qualquer número de tarefas pode ler da mesma fila. Na prática, é muito comum que uma fila tenha vários escritores, mas muito menos comum uma fila ter vários leitores.
+
+
+#### Bloqueio em leitura de fila
+- Quando uma tarefa tenta ler uma fila, ela pode opcionalmente especificar um tempo de bloqueio. Isto é o tempo e em a tarefa será mantida no estado Bloqueado para aguardar que os dados estejam disponivelna fila, caso a fila já esteja vazia. Uma tarefa que esta no estado Bloqueado para aguardar os dados sejam disponiveis, a partir de uma fila. 
+- As filas podem ter vários leitores, portanto, é possivel que uma única fila tenha mais de uma tarefa bloqueada aguardando dados. Quando este for o caso, apenas uma tarefa será desbloqueada, quando os dados estiverem disponiveis. A tarefa desbloqueada sempre será a tarefa de prioridade mais alta que esta aguardando dados. Se as tarefas tiverem prioridade igual que estiver esperando por dados, a que estiver bloqueada por mais tempo será aquela desbloqueada 
+[↑](#Sumário) 
+
+
+#### Bloqueio em gravações de fila
+- Assim como ao ler de uma fila, uma tarefa pode especificar opcionalmente um tempo de bloqueio ao gravar em uma fila. Neste caso, o tempo de bloqueio é o tempo máximo que a tarefa deve ser mantada no estado bloqueado para aguardar a disponibilidade de espaço na fila, caso a fila ja estar cheia;
+- As filas podem ter vários gravadores, portanto, é possivel que uma fila cheia tenha mais de uma tarefa bloqueado nele esperando para concluir uma operação de envio. Quando este for o caso, apenas uma tarefa virá a ser desbloqueada quando o espaço na fila ficar disponivel. A tarefa que esta desbloqueada será sempre a de maior prioridade esperando espaço. Se as tarefas bloqueadas tiverem igual prioridade, então a tarefa que estiver esperando por espaço por mais tempo será desbloqueada.
+[↑](#Sumário) 
+
+#### Bloqueio em várias filas
+As filas podem ser agrupadas em conjuntos, permitindo que uma tarefa entre no estado Bloqueado para aguardar que os dados tornar-se em qualquer uma das filas, disponivel.
+[↑](#Sumário) 
+
+### Usando uma fila 
+
+#### A função de API xQueueCreate()
+- Uma fila deve ser criada explicitamente antes de poder ser usada
+- As filas são referenciadas por handles, que são varáveis do tipo QueueHandle_t
+- A função API xQUeueCreate, cria uma fila e retorna um QueueHandle_t que faz referência a fila que criou 
+- O freeRTOS aloca RAM do heap do FreeRTOS quando uma fila é criada. A RAM é usada para manter as estruturas de dados da fila e os itens que estão contidos na fila. xQueueCreate() retorna NULL se houver memória insuficiente disponivel para a fila ser criada.
+
+|Protótipo da função|
+|:---|
+|QueueHandle_t xQueueCreate(UBaseType_t xQueueLenth, UBaseType_t uxItemSize)|
+
+|Nome do parametro|Descrição|
+|:---:|:---|
+|xQueueLenth| O numero máximo de itens que a fila que esta sendo criada pode conter a qualquer momento|
+|uxItemSize|O tamanho em bytes de cada item de dados que pode ser armazenado na fila|
+|Valor de retorno|Se NULL for retornado, a fila não poderá ser criada porque há memória heap insuficiente disponivel para o FreeRTOS alocar estrutura de dados de fila e area de armazenamento|
+
+- Após a criação de uma fila, a função API xQUEUEReset() pode ser usada para retornar a fila para seu estado vazio original
+[↑](#Sumário) 
+
