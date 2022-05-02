@@ -83,6 +83,9 @@ ___
         - [Bloqueio em várias filas](#Bloqueio-em-várias-filas)
     -[Usando uma fila ](#Usando-uma-fila)
         -[A função de API xQueueCreate()](#A-função-de-API-xQueueCreate())
+        - [As funções de API xQyeyeSendToBack() e xQueueSendToFront()](#As-funções-de-API-xQyeyeSendToBack()-e-xQueueSendToFront())
+        - [A função da API xQueueReceive()](#A-função-da-API-xQueueReceive())
+        - [A finção de API uxQueueMessagesWaiting()](#A-finção-de-API-uxQueueMessagesWaiting())
 ___
 
 [↑](#Sumário) 
@@ -936,4 +939,66 @@ As filas podem ser agrupadas em conjuntos, permitindo que uma tarefa entre no es
 
 - Após a criação de uma fila, a função API xQUEUEReset() pode ser usada para retornar a fila para seu estado vazio original
 [↑](#Sumário) 
+
+#### As funções de API xQyeyeSendToBack() e xQueueSendToFront()
+
+- Como seria de esperar, xQueueSendToBack() é usado para enviar dados para a parte de trás de uma queue e xQueueSendToFront() é usado para enviar dados para a frente de uma fila
+
+- xQueueSend() é equivalente e exatamente igual a xQueueSendToBack()
+
+- Nunca deve se chamar xQueueSendToFront() ou xQueueSendToBack() de um serviço de interrupção de rotina
+
+- Funções 
+    ~~~c
+        BaseType_t xQueueSendToFront(QueueHandle_t xQueue, 
+                                     cons void * pvItemToQueue, 
+                                     TickType_t xTicksToWait);
+
+        BaseType_t xQueueSendToBack(QueueHandle_t xQueue, 
+                                     cons void * pvItemToQueue, 
+                                     TickType_t xTicksToWait);
+    ~~~
+
+
+|Nome do parâmetro|Descrição|
+|:---|:---|
+|xFila| O identificador da fila para a qual os dados estão sendo retornado enviados (Gravados), O identificador de fila terá sido retornado da chamada para xQueueCreate() usado para criar a fila|
+|pvItemToQueue|O tamanho de cada item que a fila pode conter é definido quando  a fila é criada, então esses muitos bytes serão copiados de pvTitemToQueue para a area de armazenamento da fila|
+|xTicksToWait|A quantidade máxima de tempo que a tarefa deve permanecer no estado Bloqueado para esperar que o espaço fique disponivel na fila caso a fila ja esteja cheia <br> Ambas xQueueSendoToFront() e xQueueSendToBack() retornarão zero se a fila estiver cheia <br> O tempo de bloqueio é especificado em periodos de tick, então o tempo absoluto que ele representa depende da frequencia do tick. A macro pdMS_TO_TICKS() pode ser usado para converter para um tempo especificado em milissegundos em <br> Definir xTicksToWait como portMAX_DELAY fara com que a tarefa aguarde indefinidamente (sem tempo limite), desde que INCLUDE_vTaskSuspend seja definido como 1 em FreeRTOSConfig.h|
+
+- Retornos possiveis das funções xQyeyeSendToBack() e xQueueSendToFront()
+
+|Nome do Parametro/Valor devolvido|Descrição|
+|:---|:---|
+|Valor devolvido|Existem dois valores possiveis de retorno <br> 1. pdPASS <br> O pdPASS será retornado somente se os dados foram enviados com sucesso para a fila. <br> Se um tempo de bloqueio foi especificado (xTicksToWait) for diferente de zero, a tarefa de chamada é colocada no estado Bloqueado, para aguardar para que o espaço fique disponivel na fila, antes da função de retorno <br> 2. errQUEUE_FULL<br> errQUEUE_FULL será retornado se os dados não puderem ser gravados na fila porque a fila já esta cheia. Se um tempo de bloqueio for especificado, então a tarefa de chamada terá sido colocado no estado bloqueado para aguardar outra tarefa ou interrupção para liberar espaço da fila, entretanto com esse retorno significa que a não existiu liveração de espaço na fila.|
+
+[↑](#Sumário) 
+
+#### A função da API xQueueReceive()
+- A função xQueueReceive() é usado para receber (ler) um item de uma fila. O item recebido é removido da fila após a leitura. Nunca chame xQueueReceive() de uma rotina de serviço de interrupção, deve-se utilizar xQueueReceiveFromISR()
+
+- A função 
+    ~~~c
+        BaseType_t xQueueReceive(QueueHandle_t xQueue,
+                                 const void * pvBuffer,
+                                 TickType_t xTicksToWait);
+    ~~~
+
+- Parametros da função xQueueReceive()
+
+|Nome do parâmetro / valor devolvido| Descrição |
+|:---|:---|
+|xQueue|O identificador da fila da qual os deados estão sendo recebidos (lidos). <br> O identificador da fila terá sido retornado da chamada para xQueueCreate() usado para criar a fila|
+|pvBuffer|Um ponteiro para a memória na qual os dados recebidos serão copiados<br> O tamanho de cada item de dados que a fila contém é definido quando a fila é criado. A memória apontada pelo pvBuffer deve ser pelo menos grande o suficiente para conter tantos bytes|
+|xTicksToWait|A quantidade máxima de tempo que a tarefa deve permanecer no estado bloqueado, para aguardar que os dados fiquem disponiveis na fila, caso a fila estiver vazia<br> Se xTicksToWait for zero, então xQueueReceive retornará imediatamente se a fila ja estiver vazia<br> O tempo de bloqueio é especificado em períodos de tick, então o tempo absoluto que ele representa depende da frequência do tick. A macro pdMS_TO_TICKS() pode ser usado para converter um tempo especificado em milissegundos <br> Definir xTicksTOWait como portMAX_DELAY fará com que a tarefa aguarde indefinidamente desde de que INCLUDE_vTaskSuspend esteja definido para 1 em FreeRTOSConfig.h|
+|Valor de Retorno|Existe dois valores possiveis de retorno: <br> 1. pdPASS <br> pdPASS será retornado somente se os dados forem lidos com sucesso da fila. Se um tempo de bloqueio foi especificado, então é possivel que a tarefa seja colocada em estado bloqueado para aguardar que os dados fiquem disponiveis a ela, nesta situação retornará pdPASS se existir no tempo de bloqueio antes de acabar algum dado para ser lido. <br> 2 errQUEUE_EMPY <br> errQUEUE_EMPY será retornado se os dados não puderem ser lidos da fila pois a fila esta vazia. Se um tempo de bloqueio foi especificado, a tarefa de chamada será colocada no estado Bloqueado para aguardar que outra tarefa ou interrupção para enviar os dados a fila, mais se mesmo com o tempo de bloqueio não existir valor a ser lido após o seu termino será retornado o valor errQUEUE_EMPY|
+[↑](#Sumário) 
+
+#### A finção de API uxQueueMessagesWaiting()
+- uxQueueMessagesWaiting() é usado para consultar o numero de itens que estão atualmente em uma fila. Nunca chame uxQueueMessagesWaiting() de uma rotina de serviço de interrupção. A interrupção safe uxQueueMessagesWaitingFromISR() deve ser usada em seu lugar 
+
+- A função 
+    ~~~c
+        UBaseType_t uxQueueMessagesWaiting(QueueHandle_t xQueue);
+    ~~~
 
